@@ -29,7 +29,8 @@ func (l *GameLoop) Run(ctx context.Context, b *Bot, source *EventSource) {
 	var state GameState
 	for event := range stream {
 		if err := event.UnmarlshalData(&state); err != nil {
-			break // invalid game state
+			log.Printf("Unable to parse game state. ERR: %+v", err)
+			continue
 		}
 
 		l.doTick()

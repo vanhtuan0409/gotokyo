@@ -44,6 +44,7 @@ func (s *EventSource) Stream(ctx context.Context) <-chan *Event {
 				event, err := s.client.ReadEvent(ctx)
 				if err != nil {
 					// TODO: try to reconnect
+					log.Printf("Unable to read event from connection. Shutdown event source. ERR: %+v", err)
 					return
 				}
 
