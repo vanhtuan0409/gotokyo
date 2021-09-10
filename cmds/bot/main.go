@@ -32,7 +32,8 @@ func main() {
 	defer client.Close()
 
 	source := pkg.NewEventSource(client, pkg.SourceOpt{
-		Rate: conf.Client.EventRate,
+		BufferSize: conf.Client.EventBufferSize,
+		Rate:       conf.Client.EventRate,
 	})
 	behaviour := randomBehaviour{t: time.Now()}
 	bot := pkg.NewBot(conf.Bot.Name, &behaviour, client)

@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"log"
 
 	"golang.org/x/time/rate"
 )
@@ -13,7 +14,7 @@ type EventSource struct {
 }
 
 type SourceOpt struct {
-	BufferSize int
+	BufferSize uint
 	Rate       uint // number of event sample per second
 }
 
@@ -56,12 +57,13 @@ func (s *EventSource) Stream(ctx context.Context) <-chan *Event {
 func (s *EventSource) dispatch(ch chan<- *Event, e *Event) {
 	// limit exceed
 	if !s.limiter.Allow() {
+		log.Println("Event rate exceed rate limit. Drop event")
 		return
 	}
 
 	select {
 	case ch <- e:
 	default:
-		// drop event if cannot handle
+		log.Println("Event buffer overflow. Drop event")
 	}
 }
