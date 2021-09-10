@@ -31,7 +31,7 @@ func ParseConfig() (*Config, error) {
 	var c Config
 
 	flag.StringVar(&c.Server.Address, "server.addr", "ws://localhost:8091", "Tokyo server address")
-	flag.StringVar(&c.Bot.Name, "bot.name", "atv", "Bot name")
+	flag.StringVar(&c.Bot.Name, "bot.name", "foo", "Bot name")
 	flag.Uint64Var(&c.Client.EventBufferSize, "client.eventBuf", 10000, "Event buffer size")
 	flag.UintVar(&c.Client.EventRate, "client.eventRate", 0, "Receive event limit rate")
 	flag.BoolVar(&c.Client.DebugRead, "client.debugRead", false, "Debug client read")
