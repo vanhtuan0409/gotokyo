@@ -23,11 +23,35 @@ type PlayerInfo struct {
 	Position
 }
 
+func (p PlayerInfo) GetAngle() float32 {
+	return p.Angle
+}
+
+func (p PlayerInfo) GetPosition() Position {
+	return p.Position
+}
+
+func (p PlayerInfo) GetSpeed() float32 {
+	return p.Throttle
+}
+
 type BulletInfo struct {
 	Id       uint    `json:"id"`
 	Angle    float32 `json:"angle"`
 	PlayerId uint    `json:"player_id"`
 	Position
+}
+
+func (b BulletInfo) GetAngle() float32 {
+	return b.Angle
+}
+
+func (b BulletInfo) GetPosition() Position {
+	return b.Position
+}
+
+func (b BulletInfo) GetSpeed() float32 {
+	return BulletSpeed
 }
 
 type GameState struct {

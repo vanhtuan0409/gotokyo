@@ -51,16 +51,9 @@ func (b *randomBehaviour) Process(tick uint64, bot *pkg.Bot, state *pkg.GameStat
 	bot.RotateDeg(ctx, rand.Intn(360))
 	bot.Fire(ctx)
 
-	// if time.Since(b.t) > time.Duration(5*time.Second) {
-	// 	bot.ChangeBehaviour(&standStillBebaviour{})
-	// }
+	if time.Since(b.t) > time.Duration(5*time.Second) {
+		bot.ChangeBehaviour(pkg.StandStillBehaviour)
+	}
 
-	return nil
-}
-
-type standStillBebaviour struct{}
-
-func (b *standStillBebaviour) Process(tick uint64, bot *pkg.Bot, state *pkg.GameState) error {
-	bot.AdjustSpeed(context.Background(), 0)
 	return nil
 }

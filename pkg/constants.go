@@ -5,4 +5,5 @@ const (
 	ClientSendRate = 30
 	ShipSize       = 18
 	BulletSize     = 3
+	BulletSpeed    = 1
 )
