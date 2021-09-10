@@ -38,9 +38,7 @@ func main() {
 	}
 	defer client.Close()
 
-	source := pkg.NewEventSource(client, pkg.SourceOpt{
-		Rate: 1000,
-	})
+	source := pkg.NewEventSource(client, pkg.SourceOpt{})
 
 	bot := pkg.NewBot(name, &randomBehaviour{
 		t: time.Now(),
