@@ -31,7 +31,8 @@ type BulletPosition struct {
 }
 
 type GameState struct {
-	Bounds  [2]float64        `json:"bounds"`
-	Players []*PlayerPosition `json:"players"`
-	Bullets []*BulletPosition `json:"bullets"`
+	Bounds     [2]float64        `json:"bounds"`
+	Players    []*PlayerPosition `json:"players"`
+	Bullets    []*BulletPosition `json:"bullets"`
+	ScoreBoard map[uint]int      `json:"scoreboard"`
 }

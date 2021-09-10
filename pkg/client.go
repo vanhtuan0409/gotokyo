@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,11 @@ import (
 	"os"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/time/rate"
+)
+
+const (
+	sendRate = 30
 )
 
 type ClientOpt struct {
@@ -20,6 +26,8 @@ type ClientOpt struct {
 type Client struct {
 	conn *websocket.Conn
 	opt  *ClientOpt
+
+	sendLimiter *rate.Limiter
 }
 
 func NewClient(opt ClientOpt) (*Client, error) {
@@ -27,7 +35,10 @@ func NewClient(opt ClientOpt) (*Client, error) {
 		return nil, errors.New("Invalid client config")
 	}
 
-	c := Client{opt: &opt}
+	c := Client{
+		opt:         &opt,
+		sendLimiter: rate.NewLimiter(sendRate, 1),
+	}
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -35,7 +46,7 @@ func NewClient(opt ClientOpt) (*Client, error) {
 }
 
 func (c *Client) connect() error {
-	wsAddr := fmt.Sprintf("ws://%s/socket?key=%s&name=%s", c.opt.Addr, c.opt.BotName, c.opt.BotName)
+	wsAddr := fmt.Sprintf("%s/socket?key=%s&name=%s", c.opt.Addr, c.opt.BotName, c.opt.BotName)
 	conn, _, err := websocket.DefaultDialer.Dial(wsAddr, nil)
 	if err != nil {
 		return err
@@ -44,7 +55,7 @@ func (c *Client) connect() error {
 	return nil
 }
 
-func (c *Client) ReadEvent() (*Event, error) {
+func (c *Client) ReadEvent(ctx context.Context) (*Event, error) {
 	_, r, err := c.conn.NextReader()
 	if err != nil {
 		return nil, err
@@ -65,7 +76,9 @@ type jsonCommand struct {
 	Data interface{} `json:"data,omitempty"`
 }
 
-func (c *Client) SendCommand(command Command) error {
+func (c *Client) SendCommand(ctx context.Context, command Command) error {
+	c.sendLimiter.Wait(ctx)
+
 	w, err := c.conn.NextWriter(websocket.TextMessage)
 	if err != nil {
 		return err
@@ -76,11 +89,12 @@ func (c *Client) SendCommand(command Command) error {
 	if c.opt.Debug {
 		wt = io.MultiWriter(w, os.Stdout)
 	}
+
 	msg := jsonCommand{
 		Type: command.Name(),
 		Data: command.Data(),
 	}
-	return json.NewEncoder(wt).Encode(msg)
+	return json.NewEncoder(wt).Encode(&msg)
 }
 
 func (c *Client) Close() error {

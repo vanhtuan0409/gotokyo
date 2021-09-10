@@ -4,10 +4,15 @@ import (
 	"context"
 	"flag"
 	"log"
-	"math"
+	"math/rand"
+	"time"
 
 	"github.com/vanhtuan0409/gotokyo/pkg"
 )
+
+func init() {
+	rand.Seed(time.Now().Unix())
+}
 
 var (
 	// config
@@ -15,13 +20,10 @@ var (
 	name            string
 	eventBufferSize uint64
 	debug           bool
-
-	// global data
-	botID int
 )
 
 func main() {
-	flag.StringVar(&addr, "addr", "tokyo.thuc.space", "Tokyo server address")
+	flag.StringVar(&addr, "addr", "ws://localhost:8091", "Tokyo server address")
 	flag.StringVar(&name, "name", "atv", "Bot name")
 	flag.Uint64Var(&eventBufferSize, "event-buffer", 10000, "Event buffer size")
 	flag.BoolVar(&debug, "debug", false, "Debug log")
@@ -30,7 +32,6 @@ func main() {
 	client, err := pkg.NewClient(pkg.ClientOpt{
 		Addr:    addr,
 		BotName: name,
-		Debug:   true,
 	})
 	if err != nil {
 		panic(err)
@@ -41,38 +42,21 @@ func main() {
 		Rate: 1000,
 	})
 
-	go debugEvent(source)
-	debugCommand(client)
+	bot := pkg.NewBot(name, &randomBehaviour{}, client)
+	bot.Run(
+		context.Background(),
+		source,
+	)
 }
 
-func debugEvent(source *pkg.EventSource) {
-	stream := source.Stream(context.Background(), uint(eventBufferSize))
-	initEvent := <-stream
-	if err := initEvent.UnmarlshalData(&botID); err != nil {
-		panic(err)
-	}
-	log.Printf("Bot id: %d", botID)
+type randomBehaviour struct{}
 
-	var state pkg.GameState
-	for {
-		updateEvent := <-stream
-		if err := updateEvent.UnmarlshalData(&state); err != nil {
-			break
-		}
+func (b *randomBehaviour) Process(bot *pkg.Bot, state *pkg.GameState) error {
+	log.Printf("%+v", state.Bounds)
 
-		log.Printf("Event: %+v", state.Bounds)
-	}
-}
-
-func debugCommand(client *pkg.Client) {
-	for {
-		if err := client.SendCommand(pkg.RotateCommand{
-			Angle: math.Pi / 6,
-		}); err != nil {
-			log.Printf("Command err: %+v", err)
-		}
-		if err := client.SendCommand(pkg.FireCommand{}); err != nil {
-			log.Printf("Command err: %+v", err)
-		}
-	}
+	ctx := context.Background()
+	bot.AdjustSpeed(ctx, rand.Float32())
+	bot.RotateDeg(ctx, rand.Intn(180))
+	bot.Fire(ctx)
+	return nil
 }

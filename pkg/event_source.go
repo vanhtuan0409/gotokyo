@@ -13,7 +13,8 @@ type EventSource struct {
 }
 
 type SourceOpt struct {
-	Rate int // number of event sample per second
+	BufferSize int
+	Rate       int // number of event sample per second
 }
 
 func NewEventSource(client *Client, opt SourceOpt) *EventSource {
@@ -30,8 +31,8 @@ func NewEventSource(client *Client, opt SourceOpt) *EventSource {
 	return s
 }
 
-func (s *EventSource) Stream(ctx context.Context, bufferSize uint) <-chan *Event {
-	ch := make(chan *Event, bufferSize)
+func (s *EventSource) Stream(ctx context.Context) <-chan *Event {
+	ch := make(chan *Event, s.opt.BufferSize)
 	go func() {
 		defer close(ch)
 		for {
@@ -39,7 +40,7 @@ func (s *EventSource) Stream(ctx context.Context, bufferSize uint) <-chan *Event
 			case <-ctx.Done():
 				return
 			default:
-				event, err := s.client.ReadEvent()
+				event, err := s.client.ReadEvent(ctx)
 				if err != nil {
 					// TODO: try to reconnect
 					return
