@@ -3,10 +3,9 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
+	"math"
 
-	"github.com/gorilla/websocket"
 	"github.com/vanhtuan0409/gotokyo/pkg"
 )
 
@@ -27,20 +26,27 @@ func main() {
 	flag.Uint64Var(&eventBufferSize, "event-buffer", 10000, "Event buffer size")
 	flag.BoolVar(&debug, "debug", false, "Debug log")
 	flag.Parse()
-	if name == "" {
-		panic("Invalid bot name")
-	}
 
-	wsAddr := fmt.Sprintf("ws://%s/socket?key=%s&name=%s", addr, name, name)
-	conn, _, err := websocket.DefaultDialer.Dial(wsAddr, nil)
+	client, err := pkg.NewClient(pkg.ClientOpt{
+		Addr:    addr,
+		BotName: name,
+		Debug:   true,
+	})
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close()
+	defer client.Close()
 
-	source := pkg.NewEventSource(conn, debug)
+	source := pkg.NewEventSource(client, pkg.SourceOpt{
+		Rate: 1000,
+	})
+
+	go debugEvent(source)
+	debugCommand(client)
+}
+
+func debugEvent(source *pkg.EventSource) {
 	stream := source.Stream(context.Background(), uint(eventBufferSize))
-
 	initEvent := <-stream
 	if err := initEvent.UnmarlshalData(&botID); err != nil {
 		panic(err)
@@ -55,5 +61,18 @@ func main() {
 		}
 
 		log.Printf("Event: %+v", state.Bounds)
+	}
+}
+
+func debugCommand(client *pkg.Client) {
+	for {
+		if err := client.SendCommand(pkg.RotateCommand{
+			Angle: math.Pi / 6,
+		}); err != nil {
+			log.Printf("Command err: %+v", err)
+		}
+		if err := client.SendCommand(pkg.FireCommand{}); err != nil {
+			log.Printf("Command err: %+v", err)
+		}
 	}
 }

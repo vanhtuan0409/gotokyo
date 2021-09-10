@@ -2,23 +2,32 @@ package pkg
 
 import (
 	"context"
-	"encoding/json"
-	"io"
-	"os"
 
-	"github.com/gorilla/websocket"
+	"golang.org/x/time/rate"
 )
 
 type EventSource struct {
-	conn  *websocket.Conn
-	debug bool
+	client  *Client
+	limiter *rate.Limiter
+	opt     *SourceOpt
 }
 
-func NewEventSource(conn *websocket.Conn, debug bool) *EventSource {
-	return &EventSource{
-		conn:  conn,
-		debug: debug,
+type SourceOpt struct {
+	Rate int // number of event sample per second
+}
+
+func NewEventSource(client *Client, opt SourceOpt) *EventSource {
+	r := rate.Inf
+	if opt.Rate > 0 {
+		r = rate.Limit(opt.Rate)
 	}
+
+	s := &EventSource{
+		client:  client,
+		opt:     &opt,
+		limiter: rate.NewLimiter(r, 1),
+	}
+	return s
 }
 
 func (s *EventSource) Stream(ctx context.Context, bufferSize uint) <-chan *Event {
@@ -30,7 +39,7 @@ func (s *EventSource) Stream(ctx context.Context, bufferSize uint) <-chan *Event
 			case <-ctx.Done():
 				return
 			default:
-				event, err := s.readEvent()
+				event, err := s.client.ReadEvent()
 				if err != nil {
 					// TODO: try to reconnect
 					return
@@ -43,23 +52,15 @@ func (s *EventSource) Stream(ctx context.Context, bufferSize uint) <-chan *Event
 	return ch
 }
 
-func (s *EventSource) readEvent() (e *Event, err error) {
-	_, r, err := s.conn.NextReader()
-	if err != nil {
-		return nil, err
-	}
-	if s.debug {
-		r = io.TeeReader(r, os.Stdout)
-	}
-
-	err = json.NewDecoder(r).Decode(e)
-	return
-}
-
 func (s *EventSource) dispatch(ch chan<- *Event, e *Event) {
-	// drop event if cannot handle
+	// limit exceed
+	if !s.limiter.Allow() {
+		return
+	}
+
 	select {
 	case ch <- e:
 	default:
+		// drop event if cannot handle
 	}
 }
