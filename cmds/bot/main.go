@@ -42,14 +42,18 @@ func main() {
 		Rate: 1000,
 	})
 
-	bot := pkg.NewBot(name, &randomBehaviour{}, client)
+	bot := pkg.NewBot(name, &randomBehaviour{
+		t: time.Now(),
+	}, client)
 	bot.Run(
 		context.Background(),
 		source,
 	)
 }
 
-type randomBehaviour struct{}
+type randomBehaviour struct {
+	t time.Time
+}
 
 func (b *randomBehaviour) Process(bot *pkg.Bot, state *pkg.GameState) error {
 	log.Printf("%+v", state.Bounds)
@@ -58,5 +62,16 @@ func (b *randomBehaviour) Process(bot *pkg.Bot, state *pkg.GameState) error {
 	bot.AdjustSpeed(ctx, rand.Float32())
 	bot.RotateDeg(ctx, rand.Intn(180))
 	bot.Fire(ctx)
+
+	if time.Since(b.t) > time.Duration(5*time.Second) {
+		bot.ChangeBehaviour(&standStillBebaviour{})
+	}
+	return nil
+}
+
+type standStillBebaviour struct{}
+
+func (b *standStillBebaviour) Process(bot *pkg.Bot, state *pkg.GameState) error {
+	bot.AdjustSpeed(context.Background(), 0)
 	return nil
 }
