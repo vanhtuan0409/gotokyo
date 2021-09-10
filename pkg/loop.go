@@ -55,7 +55,9 @@ func (l *GameLoop) Run(ctx context.Context, b *Bot, source *EventSource) {
 			// perform behaviour processing
 			b.setProcessing(true)
 			defer b.setProcessing(false)
-			b.behaviour.Process(l.tick, b, state)
+			if err := b.behaviour.Process(l.tick, b, state); err != nil {
+				log.Printf("Bot's behaviour cannot process state. ERR: %+v", err)
+			}
 		}(b, &state)
 	}
 
