@@ -26,14 +26,17 @@ func (l *GameLoop) Run(ctx context.Context, b *Bot, source *EventSource) {
 	}
 	log.Printf("Bot initialized successfully. Bot id %d", b.id)
 
-	var state GameState
 	for event := range stream {
+		var state GameState
 		if err := event.UnmarlshalData(&state); err != nil {
 			log.Printf("Unable to parse game state. ERR: %+v", err)
 			continue
 		}
 
 		l.doTick()
+		if b.isProcessing() {
+			continue
+		}
 
 		// There will be 2 thread accessing bot instance
 		// 1 is main game loop thread
@@ -41,10 +44,6 @@ func (l *GameLoop) Run(ctx context.Context, b *Bot, source *EventSource) {
 		// Behaviour processing might run slower than the received event rate
 		// Game loop should always ensure bot's behaviour based on latest received event
 		go func(b *Bot, state *GameState) {
-			if b.isProcessing() {
-				return
-			}
-
 			// resync with data from server
 			botInfo := FindPlayer(b.id, state.Players)
 			b.syncInfo(botInfo)
@@ -54,10 +53,10 @@ func (l *GameLoop) Run(ctx context.Context, b *Bot, source *EventSource) {
 
 			// perform behaviour processing
 			b.setProcessing(true)
-			defer b.setProcessing(false)
 			if err := b.behaviour.Process(l.tick, b, state); err != nil {
 				log.Printf("Bot's behaviour cannot process state. ERR: %+v", err)
 			}
+			b.setProcessing(false)
 		}(b, &state)
 	}
 
