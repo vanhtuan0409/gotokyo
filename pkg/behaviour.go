@@ -1,5 +1,5 @@
 package pkg
 
 type Behaviour interface {
-	Process(b *Bot, state *GameState) error
+	Process(tick uint64, b *Bot, state *GameState) error
 }

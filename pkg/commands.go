@@ -30,12 +30,6 @@ type ThrottleCommand struct {
 }
 
 func NewThrottleCommand(speed float32) ThrottleCommand {
-	if speed > 1 {
-		speed = 1
-	}
-	if speed < 0 {
-		speed = 0
-	}
 	return ThrottleCommand{val: speed}
 }
 

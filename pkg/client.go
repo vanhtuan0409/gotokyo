@@ -12,15 +12,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
-const (
-	sendRate = 30
-)
-
 type ClientOpt struct {
 	Addr    string
 	BotName string
 
-	Debug bool
+	DebugRead  bool
+	DebugWrite bool
 }
 
 type Client struct {
@@ -37,7 +34,7 @@ func NewClient(opt ClientOpt) (*Client, error) {
 
 	c := Client{
 		opt:         &opt,
-		sendLimiter: rate.NewLimiter(sendRate, 1),
+		sendLimiter: rate.NewLimiter(ClientSendRate, 1),
 	}
 	if err := c.connect(); err != nil {
 		return nil, err
@@ -60,7 +57,7 @@ func (c *Client) ReadEvent(ctx context.Context) (*Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.opt.Debug {
+	if c.opt.DebugRead {
 		r = io.TeeReader(r, os.Stdout)
 	}
 
@@ -86,7 +83,7 @@ func (c *Client) SendCommand(ctx context.Context, command Command) error {
 	defer w.Close()
 
 	var wt io.Writer = w
-	if c.opt.Debug {
+	if c.opt.DebugWrite {
 		wt = io.MultiWriter(w, os.Stdout)
 	}
 
@@ -98,5 +95,9 @@ func (c *Client) SendCommand(ctx context.Context, command Command) error {
 }
 
 func (c *Client) Close() error {
+	c.conn.WriteMessage(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+	)
 	return c.conn.Close()
 }

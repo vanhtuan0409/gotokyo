@@ -14,7 +14,7 @@ type EventSource struct {
 
 type SourceOpt struct {
 	BufferSize int
-	Rate       int // number of event sample per second
+	Rate       uint // number of event sample per second
 }
 
 func NewEventSource(client *Client, opt SourceOpt) *EventSource {

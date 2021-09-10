@@ -12,27 +12,27 @@ func (e *Event) UnmarlshalData(out interface{}) error {
 }
 
 type Position struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
+	X float32 `json:"x"`
+	Y float32 `json:"y"`
 }
 
-type PlayerPosition struct {
+type PlayerInfo struct {
 	Id       uint    `json:"id"`
-	Angle    float64 `json:"angle"`
-	Throttle float64 `json:"throttle"`
+	Angle    float32 `json:"angle"`
+	Throttle float32 `json:"throttle"`
 	Position
 }
 
-type BulletPosition struct {
+type BulletInfo struct {
 	Id       uint    `json:"id"`
-	Angle    float64 `json:"angle"`
+	Angle    float32 `json:"angle"`
 	PlayerId uint    `json:"player_id"`
 	Position
 }
 
 type GameState struct {
-	Bounds     [2]float64        `json:"bounds"`
-	Players    []*PlayerPosition `json:"players"`
-	Bullets    []*BulletPosition `json:"bullets"`
-	ScoreBoard map[uint]int      `json:"scoreboard"`
+	Bounds     [2]float32    `json:"bounds"`
+	Players    []*PlayerInfo `json:"players"`
+	Bullets    []*BulletInfo `json:"bullets"`
+	ScoreBoard map[uint]uint `json:"scoreboard"`
 }

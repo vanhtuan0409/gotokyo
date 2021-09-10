@@ -2,26 +2,32 @@ package pkg
 
 import (
 	"context"
-	"log"
 	"math"
-)
-
-const (
-	maxBullets = 4
+	"sync"
+	"sync/atomic"
 )
 
 type Bot struct {
 	id        uint
 	name      string
-	lastAngle float32
+	numBullet uint32
+
+	lastPosition Position
+	lastAngle    float32
+	lastSpeed    float32
+	lastScore    uint
+
 	behaviour Behaviour
 
-	client *Client
+	client     *Client
+	processing uint32
+	lock       sync.Mutex
 }
 
 func NewBot(name string, behaviour Behaviour, client *Client) *Bot {
 	b := Bot{
 		name:      name,
+		numBullet: BotMaxBullets,
 		client:    client,
 		behaviour: behaviour,
 	}
@@ -40,28 +46,12 @@ func (b *Bot) LastAngle() float32 {
 	return b.lastAngle
 }
 
-func (b *Bot) Run(ctx context.Context, source *EventSource) error {
-	stream := source.Stream(ctx)
-	if err := b.init(ctx, stream); err != nil {
-		return err
-	}
-	log.Printf("Bot initialized successfully. Bot id %d", b.id)
-
-	var state GameState
-	for event := range stream {
-		if err := event.UnmarlshalData(&state); err != nil {
-			break // invalid game state
-		}
-		b.behaviour.Process(b, &state)
-	}
-
-	return nil
+func (b *Bot) LastPosition() Position {
+	return b.lastPosition
 }
 
-func (b *Bot) init(ctx context.Context, stream <-chan *Event) error {
-	e := <-stream
-	e.UnmarlshalData(&b.id)
-	return nil
+func (b *Bot) LastSpeed() float32 {
+	return b.lastSpeed
 }
 
 func (b *Bot) Fire(ctx context.Context) error {
@@ -69,7 +59,8 @@ func (b *Bot) Fire(ctx context.Context) error {
 }
 
 func (b *Bot) AdjustSpeed(ctx context.Context, speed float32) error {
-	return b.client.SendCommand(ctx, NewThrottleCommand(speed))
+	b.setSpeed(speed)
+	return b.client.SendCommand(ctx, NewThrottleCommand(b.lastSpeed))
 }
 
 func (b *Bot) RotateAbs(ctx context.Context, angle float32) error {
@@ -94,14 +85,48 @@ func (b *Bot) ChangeBehaviour(behaviour Behaviour) {
 	b.behaviour = behaviour
 }
 
-func (b *Bot) setAngle(angle float32) {
-	b.lastAngle = angle
-	if b.lastAngle > (2 * math.Pi) {
-		b.lastAngle -= 2 * math.Pi
+func (b *Bot) setAngle(angle float32) float32 {
+	if angle > (2 * math.Pi) {
+		angle -= 2 * math.Pi
 	}
+	b.lastAngle = angle
+	return b.lastAngle
+}
+
+func (b *Bot) setSpeed(speed float32) float32 {
+	if speed > 1 {
+		speed = 1
+	}
+	if speed < 0 {
+		speed = 0
+	}
+	b.lastSpeed = speed
+	return b.lastSpeed
 }
 
 func degreeToRad(degree int) float32 {
 	ret := math.Pi / 180 * float32(degree)
 	return ret
+}
+
+func (b *Bot) setProcessing(status bool) {
+	val := uint32(0)
+	if status {
+		val = 1
+	}
+	atomic.StoreUint32(&b.processing, val)
+}
+
+func (b *Bot) isProcessing() bool {
+	return atomic.LoadUint32(&b.processing) == 1
+}
+
+func (b *Bot) syncInfo(info *PlayerInfo) {
+	if info == nil {
+		return
+	}
+
+	b.lastAngle = info.Angle
+	b.lastSpeed = info.Throttle
+	b.lastPosition = info.Position
 }
