@@ -33,6 +33,7 @@ func (c *BehaviourComposite) Process(tick uint64, b *pkg.Bot, state *pkg.GameSta
 	target, found := c.shootStrat.Scan(tick, c.ctx, b)
 	if found {
 		c.shoot(ctx, b, target)
+		return nil
 	}
 
 	// moving

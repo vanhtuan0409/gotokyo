@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"context"
-	"sync"
 )
 
 type Bot struct {
@@ -17,9 +16,7 @@ type Bot struct {
 
 	behaviour Behaviour
 
-	client     *Client
-	processing uint32
-	lock       sync.Mutex
+	client *Client
 }
 
 func NewBot(name string, behaviour Behaviour, client *Client) *Bot {
@@ -120,22 +117,6 @@ func (b *Bot) setSpeed(speed float32) (float32, bool) {
 	changed := b.lastSpeed != speed
 	b.lastSpeed = speed
 	return b.lastSpeed, changed
-}
-
-func (b *Bot) setProcessing(status bool) {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-	val := uint32(0)
-	if status {
-		val = 1
-	}
-	b.processing = val
-}
-
-func (b *Bot) isProcessing() bool {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-	return b.processing == 1
 }
 
 func (b *Bot) syncInfo(info *PlayerInfo) {

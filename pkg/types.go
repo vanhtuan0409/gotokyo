@@ -53,7 +53,7 @@ type BulletInfo struct {
 }
 
 func (b BulletInfo) GetType() ObjectType {
-	return ObjectPlayer
+	return ObjectBullet
 }
 
 func (b BulletInfo) GetAngle() float32 {
