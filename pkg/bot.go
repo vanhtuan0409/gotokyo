@@ -2,9 +2,6 @@ package pkg
 
 import (
 	"context"
-	"math"
-	"sync"
-	"sync/atomic"
 )
 
 type Bot struct {
@@ -19,9 +16,7 @@ type Bot struct {
 
 	behaviour Behaviour
 
-	client     *Client
-	processing uint32
-	lock       sync.Mutex
+	client *Client
 }
 
 func NewBot(name string, behaviour Behaviour, client *Client) *Bot {
@@ -46,7 +41,7 @@ func (b *Bot) LastAngle() float32 {
 	return b.lastAngle
 }
 
-func (b *Bot) LastPosition() Position {
+func (b *Bot) GetPosition() Position {
 	return b.lastPosition
 }
 
@@ -54,31 +49,53 @@ func (b *Bot) LastSpeed() float32 {
 	return b.lastSpeed
 }
 
+func (b *Bot) GetType() ObjectType {
+	return ObjectBot
+}
+
 func (b *Bot) Fire(ctx context.Context) error {
 	return b.client.SendCommand(ctx, NewFireCommand())
 }
 
 func (b *Bot) AdjustSpeed(ctx context.Context, speed float32) error {
-	b.setSpeed(speed)
-	return b.client.SendCommand(ctx, NewThrottleCommand(b.lastSpeed))
+	_, changed := b.setSpeed(speed)
+	if !changed {
+		return nil
+	}
+	return b.client.SendCommand(ctx, NewThrottleCommand(b.LastSpeed()))
 }
 
 func (b *Bot) RotateAbs(ctx context.Context, angle float32) error {
 	b.setAngle(angle)
-	return b.client.SendCommand(ctx, NewRotateCommand(b.lastAngle))
+	return b.client.SendCommand(ctx, NewRotateCommand(b.LastAngle()))
 }
 
 func (b *Bot) Rotate(ctx context.Context, angle float32) error {
-	b.setAngle(b.lastAngle + angle)
-	return b.client.SendCommand(ctx, NewRotateCommand(b.lastAngle))
+	b.setAngle(b.LastAngle() + angle)
+	return b.client.SendCommand(ctx, NewRotateCommand(b.LastAngle()))
 }
 
 func (b *Bot) RotateDegAbs(ctx context.Context, degree int) error {
-	return b.RotateAbs(ctx, degreeToRad(degree))
+	return b.RotateAbs(ctx, DegreeToRad(degree))
 }
 
 func (b *Bot) RotateDeg(ctx context.Context, degree int) error {
-	return b.Rotate(ctx, degreeToRad(degree))
+	return b.Rotate(ctx, DegreeToRad(degree))
+}
+
+func (b *Bot) RotateVector(ctx context.Context, v Vector) error {
+	angle := v.Heading()
+	return b.RotateAbs(ctx, angle)
+}
+
+func (b *Bot) FaceToward(ctx context.Context, o Object) error {
+	v := NewVectorFromPoint(b.GetPosition(), o.GetPosition())
+	return b.RotateVector(ctx, v)
+}
+
+func (b *Bot) FaceAway(ctx context.Context, o Object) error {
+	v := NewVectorFromPoint(b.GetPosition(), o.GetPosition()).Inverse()
+	return b.RotateVector(ctx, v)
 }
 
 func (b *Bot) ChangeBehaviour(behaviour Behaviour) {
@@ -86,39 +103,20 @@ func (b *Bot) ChangeBehaviour(behaviour Behaviour) {
 }
 
 func (b *Bot) setAngle(angle float32) float32 {
-	if angle > (2 * math.Pi) {
-		angle -= 2 * math.Pi
-	}
-	b.lastAngle = angle
+	b.lastAngle = NormalizeRad(angle)
 	return b.lastAngle
 }
 
-func (b *Bot) setSpeed(speed float32) float32 {
+func (b *Bot) setSpeed(speed float32) (float32, bool) {
 	if speed > 1 {
 		speed = 1
 	}
 	if speed < 0 {
 		speed = 0
 	}
+	changed := b.lastSpeed != speed
 	b.lastSpeed = speed
-	return b.lastSpeed
-}
-
-func degreeToRad(degree int) float32 {
-	ret := math.Pi / 180 * float32(degree)
-	return ret
-}
-
-func (b *Bot) setProcessing(status bool) {
-	val := uint32(0)
-	if status {
-		val = 1
-	}
-	atomic.StoreUint32(&b.processing, val)
-}
-
-func (b *Bot) isProcessing() bool {
-	return atomic.LoadUint32(&b.processing) == 1
+	return b.lastSpeed, changed
 }
 
 func (b *Bot) syncInfo(info *PlayerInfo) {
@@ -126,7 +124,7 @@ func (b *Bot) syncInfo(info *PlayerInfo) {
 		return
 	}
 
-	b.lastAngle = info.Angle
-	b.lastSpeed = info.Throttle
+	b.setAngle(info.Angle)
+	b.setSpeed(info.Throttle)
 	b.lastPosition = info.Position
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/vanhtuan0409/gotokyo/pkg"
+	"github.com/vanhtuan0409/gotokyo/pkg/behaviours"
 )
 
 func init() {
@@ -35,25 +36,20 @@ func main() {
 		BufferSize: conf.Client.EventBufferSize,
 		Rate:       conf.Client.EventRate,
 	})
-	behaviour := randomBehaviour{t: time.Now()}
-	bot := pkg.NewBot(conf.Bot.Name, &behaviour, client)
+
+	compositeBeh := behaviours.NewBehaviourComposite(
+		behaviours.CombineMovingStrat(
+			behaviours.StratMoveAntiGravity,
+			behaviours.StratMoveDodgePerpendicular,
+		),
+		behaviours.StratShootNone,
+		// behaviours.NewStratShootingThrottle(
+		// 	15,
+		// 	behaviours.StratShootNearest,
+		// ),
+	)
+
+	bot := pkg.NewBot(conf.Bot.Name, compositeBeh, client)
 	loop := pkg.NewGameLoop()
 	loop.Run(context.Background(), bot, source)
-}
-
-type randomBehaviour struct {
-	t time.Time
-}
-
-func (b *randomBehaviour) Process(tick uint64, bot *pkg.Bot, state *pkg.GameState) error {
-	ctx := context.Background()
-	bot.AdjustSpeed(ctx, rand.Float32())
-	bot.RotateDeg(ctx, rand.Intn(360))
-	bot.Fire(ctx)
-
-	if time.Since(b.t) > time.Duration(5*time.Second) {
-		bot.ChangeBehaviour(pkg.StandStillBehaviour)
-	}
-
-	return nil
 }
